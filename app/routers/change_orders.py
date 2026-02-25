@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
+from loguru import logger
 from app.auth import get_current_contractor
 from app.database import get_supabase
 from app.models.change_order import (
@@ -190,12 +191,29 @@ async def delete_item(
     _recalculate_totals(change_order_id)
 
 
+@router.post("/{change_order_id}/generate-pdf")
+async def generate_pdf(
+    change_order_id: UUID,
+    contractor: dict = Depends(get_current_contractor),
+):
+    """Generate or regenerate the Change Order PDF."""
+    co = _verify_co_access(change_order_id, contractor["id"])
+
+    from app.pdf.change_order_generator import generate_change_order_pdf
+    try:
+        pdf_url = await generate_change_order_pdf(change_order_id)
+        return {"pdf_url": pdf_url, "order_number": co["order_number"]}
+    except Exception as e:
+        logger.error(f"PDF generation failed for {change_order_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate PDF")
+
+
 @router.post("/{change_order_id}/send", response_model=ChangeOrderResponse)
 async def send_to_client(
     change_order_id: UUID,
     contractor: dict = Depends(get_current_contractor),
 ):
-    """Send Change Order to client for signature."""
+    """Generate PDF and send Change Order to client for signature."""
     co = _verify_co_access(change_order_id, contractor["id"])
 
     if co["status"] != "draft":
@@ -218,9 +236,15 @@ async def send_to_client(
             detail="Add at least one cost line item before sending to client",
         )
 
-    # Send notification to client (async)
+    # Generate PDF before sending
+    from app.pdf.change_order_generator import generate_change_order_pdf
+    try:
+        await generate_change_order_pdf(change_order_id)
+    except Exception as e:
+        logger.warning(f"PDF generation failed, sending without PDF: {e}")
+
+    # Send notification to client
     from app.notifications.service import send_client_sign_request
-    import asyncio
     await send_client_sign_request(change_order_id)
 
     # Refresh and return
@@ -249,6 +273,7 @@ async def sign_change_order(
     token: str,
     request: Request,
 ):
+    """Client signs a Change Order via click-to-sign token."""
     payload = verify_action_token(token)
     if payload.get("change_order_id") != str(change_order_id):
         raise HTTPException(status_code=403, detail="Token does not match this change order")
@@ -274,9 +299,11 @@ async def sign_change_order(
     if payload.get("client_email") != co.data["projects"]["client_email"]:
         raise HTTPException(status_code=403, detail="Email mismatch")
 
+    now = datetime.now(timezone.utc).isoformat()
+
     # Mark token as used
     db.table("notifications").update(
-        {"action_token_used_at": datetime.utcnow().isoformat()}
+        {"action_token_used_at": now}
     ).eq("action_token", token).execute()
 
     # Sign the change order
@@ -288,7 +315,7 @@ async def sign_change_order(
         .update(
             {
                 "status": "signed",
-                "signed_at": datetime.utcnow().isoformat(),
+                "signed_at": now,
                 "client_ip": client_ip,
                 "client_user_agent": client_ua,
             }
@@ -309,6 +336,43 @@ async def sign_change_order(
             "ip_address": client_ip,
         }
     ).execute()
+
+    # Update linked change events to 'signed' status
+    linked_ces = (
+        db.table("change_events")
+        .select("id, status")
+        .eq("project_id", co.data.get("project_id"))
+        .in_("status", ["proposed", "confirmed"])
+        .execute()
+    )
+    for ce in linked_ces.data:
+        db.table("change_events").update(
+            {"status": "signed"}
+        ).eq("id", ce["id"]).execute()
+        db.table("state_transitions").insert(
+            {
+                "entity_type": "change_event",
+                "entity_id": ce["id"],
+                "from_status": ce["status"],
+                "to_status": "signed",
+                "actor_type": "client",
+                "metadata": {"change_order_id": str(change_order_id)},
+            }
+        ).execute()
+
+    # Regenerate PDF with digital signature metadata
+    try:
+        from app.pdf.change_order_generator import generate_change_order_pdf
+        await generate_change_order_pdf(change_order_id)
+    except Exception as e:
+        logger.warning(f"Post-sign PDF regeneration failed: {e}")
+
+    # Send close notification to contractor
+    try:
+        from app.notifications.service import send_change_closed
+        await send_change_closed(change_order_id)
+    except Exception as e:
+        logger.error(f"Failed to send close notification: {e}")
 
     signed = result.data[0]
     signed.pop("projects", None)

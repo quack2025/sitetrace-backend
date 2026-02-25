@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: letter;
+    margin: 0.75in 0.75in 1in 0.75in;
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: 'Helvetica', 'Arial', sans-serif;
+      font-size: 9px;
+      color: #64748B;
+    }
+  }
+
+  body {
+    font-family: 'Helvetica', 'Arial', sans-serif;
+    font-size: 11px;
+    color: #0F172A;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid #F97316;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-mark {
+    width: 40px;
+    height: 40px;
+    background: #F97316;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+  }
+
+  .brand-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .brand-sub {
+    font-size: 10px;
+    color: #64748B;
+  }
+
+  .doc-info {
+    text-align: right;
+  }
+
+  .doc-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 4px;
+  }
+
+  .order-number {
+    font-size: 14px;
+    color: #F97316;
+    font-weight: 600;
+  }
+
+  .doc-date {
+    font-size: 10px;
+    color: #64748B;
+    margin-top: 2px;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0F172A;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #E2E8F0;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+
+  /* Info grid */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .info-label {
+    font-size: 9px;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .info-value {
+    font-size: 11px;
+    color: #0F172A;
+    font-weight: 500;
+  }
+
+  /* Description */
+  .description-text {
+    background: #F8FAFC;
+    border-left: 3px solid #F97316;
+    padding: 10px 14px;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  /* Materials */
+  .materials-row {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .material-box {
+    flex: 1;
+    background: #FFF7ED;
+    border: 1px solid #FED7AA;
+    border-radius: 6px;
+    padding: 8px 12px;
+    text-align: center;
+  }
+
+  .material-label {
+    font-size: 9px;
+    color: #9A3412;
+    text-transform: uppercase;
+  }
+
+  .material-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0F172A;
+  }
+
+  .material-arrow {
+    font-size: 18px;
+    color: #F97316;
+    font-weight: bold;
+  }
+
+  /* Cost table */
+  .cost-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+
+  .cost-table thead th {
+    background: #0F172A;
+    color: white;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 8px 10px;
+    text-align: left;
+  }
+
+  .cost-table thead th:last-child,
+  .cost-table thead th:nth-child(4),
+  .cost-table thead th:nth-child(5) {
+    text-align: right;
+  }
+
+  .cost-table tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 10px;
+  }
+
+  .cost-table tbody td:last-child,
+  .cost-table tbody td:nth-child(4),
+  .cost-table tbody td:nth-child(5) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cost-table tbody tr:nth-child(even) {
+    background: #F8FAFC;
+  }
+
+  /* Totals */
+  .totals-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+
+  .totals-box {
+    width: 250px;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    font-size: 10px;
+  }
+
+  .total-row:nth-child(even) {
+    background: #F8FAFC;
+  }
+
+  .total-row.grand-total {
+    background: #0F172A;
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .total-label {
+    color: #64748B;
+  }
+
+  .total-row.grand-total .total-label {
+    color: white;
+  }
+
+  /* Evidence */
+  .evidence-container {
+    margin-top: 8px;
+  }
+
+  .evidence-img {
+    max-width: 100%;
+    max-height: 250px;
+    border: 1px solid #E2E8F0;
+    border-radius: 4px;
+    object-fit: contain;
+  }
+
+  .evidence-caption {
+    font-size: 9px;
+    color: #64748B;
+    margin-top: 4px;
+  }
+
+  /* Original message */
+  .message-quote {
+    background: #F1F5F9;
+    border-left: 3px solid #94A3B8;
+    padding: 10px 14px;
+    font-size: 10px;
+    color: #475569;
+    font-style: italic;
+    white-space: pre-wrap;
+    max-height: 120px;
+    overflow: hidden;
+  }
+
+  .message-meta {
+    font-size: 9px;
+    color: #94A3B8;
+    margin-top: 4px;
+  }
+
+  /* Signature */
+  .signature-section {
+    margin-top: 30px;
+    page-break-inside: avoid;
+  }
+
+  .signature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 12px;
+  }
+
+  .signature-block {
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .signature-line {
+    border-bottom: 1px solid #0F172A;
+    height: 40px;
+    margin-bottom: 6px;
+  }
+
+  .signature-label {
+    font-size: 9px;
+    color: #64748B;
+    text-transform: uppercase;
+  }
+
+  .digital-signature {
+    background: #F0FDF4;
+    border: 1px solid #86EFAC;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 10px;
+    color: #166534;
+  }
+
+  .digital-signature strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  /* Footer */
+  .footer-note {
+    margin-top: 20px;
+    font-size: 8px;
+    color: #94A3B8;
+    text-align: center;
+    border-top: 1px solid #E2E8F0;
+    padding-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-area">
+    <div class="logo-mark">ST</div>
+    <div>
+      <div class="brand-name">SiteTrace</div>
+      <div class="brand-sub">Construction Change Management</div>
+    </div>
+  </div>
+  <div class="doc-info">
+    <div class="doc-title">CHANGE ORDER</div>
+    <div class="order-number">{{ order_number }}</div>
+    <div class="doc-date">Generated {{ generated_date }}</div>
+  </div>
+</div>
+
+<!-- Project Info -->
+<div class="section">
+  <div class="section-title">Project Information</div>
+  <div class="info-grid">
+    <div>
+      <div class="info-label">Project</div>
+      <div class="info-value">{{ project_name }}</div>
+    </div>
+    <div>
+      <div class="info-label">Client</div>
+      <div class="info-value">{{ client_name }}</div>
+    </div>
+    <div>
+      <div class="info-label">Contractor</div>
+      <div class="info-value">{{ contractor_name }}</div>
+    </div>
+    <div>
+      <div class="info-label">Project Type</div>
+      <div class="info-value">{{ project_type }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Dates -->
+<div class="section">
+  <div class="section-title">Timeline</div>
+  <div class="info-grid">
+    <div>
+      <div class="info-label">Detection Date</div>
+      <div class="info-value">{{ detection_date }}</div>
+    </div>
+    <div>
+      <div class="info-label">Confirmation Date</div>
+      <div class="info-value">{{ confirmation_date }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Description -->
+<div class="section">
+  <div class="section-title">Change Description</div>
+  <div class="description-text">{{ description }}</div>
+  {% if area %}
+  <div style="margin-top: 6px;">
+    <span class="info-label">Affected Area: </span>
+    <span class="info-value">{{ area }}</span>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Material Change -->
+{% if material_from or material_to %}
+<div class="section">
+  <div class="section-title">Material Change</div>
+  <div class="materials-row">
+    <div class="material-box">
+      <div class="material-label">Original</div>
+      <div class="material-value">{{ material_from or "N/A" }}</div>
+    </div>
+    <div class="material-arrow">→</div>
+    <div class="material-box">
+      <div class="material-label">New</div>
+      <div class="material-value">{{ material_to or "N/A" }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Cost Table -->
+<div class="section">
+  <div class="section-title">Cost Breakdown</div>
+  <table class="cost-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Qty × Unit</th>
+        <th>Unit Price</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.description }}</td>
+        <td>{{ item.category }}</td>
+        <td style="text-align: right;">{{ item.quantity }} {{ item.unit }}</td>
+        <td style="text-align: right;">{{ currency }} {{ item.unit_cost }}</td>
+        <td style="text-align: right;">{{ currency }} {{ item.total_cost }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals-section">
+    <div class="totals-box">
+      <div class="total-row">
+        <span class="total-label">Subtotal</span>
+        <span>{{ currency }} {{ subtotal }}</span>
+      </div>
+      {% if markup_percent > 0 %}
+      <div class="total-row">
+        <span class="total-label">Markup ({{ markup_percent }}%)</span>
+        <span>{{ currency }} {{ markup_amount }}</span>
+      </div>
+      {% endif %}
+      {% if tax_percent > 0 %}
+      <div class="total-row">
+        <span class="total-label">Tax ({{ tax_percent }}%)</span>
+        <span>{{ currency }} {{ tax_amount }}</span>
+      </div>
+      {% endif %}
+      <div class="total-row grand-total">
+        <span class="total-label">TOTAL</span>
+        <span>{{ currency }} {{ total }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Evidence -->
+{% if evidence_images %}
+<div class="section">
+  <div class="section-title">Evidence</div>
+  <div class="evidence-container">
+    {% for img in evidence_images %}
+    <div style="margin-bottom: 8px;">
+      <img class="evidence-img" src="data:image/jpeg;base64,{{ img.base64 }}" alt="Evidence {{ loop.index }}">
+      <div class="evidence-caption">{{ img.caption }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Original Message -->
+{% if original_message %}
+<div class="section">
+  <div class="section-title">Original Message</div>
+  <div class="message-quote">{{ original_message }}</div>
+  {% if message_timestamp %}
+  <div class="message-meta">Received: {{ message_timestamp }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Signature -->
+<div class="signature-section">
+  <div class="section-title">Authorization</div>
+  <div class="signature-grid">
+    <div class="signature-block">
+      <div class="info-label">Contractor</div>
+      <div class="signature-line"></div>
+      <div class="signature-label">{{ contractor_name }}</div>
+      <div class="signature-label">Date: _______________</div>
+    </div>
+    <div class="signature-block">
+      {% if signed_at %}
+      <div class="digital-signature">
+        <strong>✓ Digitally Approved</strong>
+        Approved on {{ signed_at }}<br>
+        by {{ signed_by_email }}<br>
+        {% if signed_from_ip %}from IP {{ signed_from_ip }}{% endif %}
+      </div>
+      {% else %}
+      <div class="info-label">Client</div>
+      <div class="signature-line"></div>
+      <div class="signature-label">{{ client_name }}</div>
+      <div class="signature-label">Date: _______________</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer-note">
+  This document was generated by SiteTrace — Construction Change Management Platform.
+  Document version: {{ doc_version }} | {{ order_number }}
+</div>
+
+</body>
+</html>

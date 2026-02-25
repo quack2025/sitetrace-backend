@@ -4,6 +4,11 @@ from uuid import UUID
 from loguru import logger
 from app.database import get_supabase
 from app.agents.text_detector import detect_changes_in_text
+from app.agents.image_classifier import classify_image
+from app.agents.visual_change import extract_changes_from_image
+from app.processors.image_processor import normalize_image
+from app.processors.pdf_extractor import extract_from_pdf
+from app.processors.doc_parser import parse_docx, parse_xlsx
 from app.models.change_event import ChangeEventProposal
 from app.config import get_settings
 
@@ -86,36 +91,155 @@ async def process_ingest_event(ingest_event_id: UUID) -> list[dict]:
         return [(p, metadata) for p in proposals]
 
     async def analyze_images():
-        """Phase 2: Image analysis (Sprint 3 — placeholder)."""
+        """Phase 2: Image analysis via classify → extract pipeline."""
         if not image_attachments:
             return []
-        # TODO: Sprint 3 — For each image:
-        # 1. Download via ingestor.download_attachment()
-        # 2. Normalize with image_processor
-        # 3. Classify with image_classifier
-        # 4. Extract changes with visual_change agent
-        # 5. Return proposals with metadata
-        logger.info(
-            f"Skipping {len(image_attachments)} image attachments "
-            "(image pipeline not yet implemented)"
-        )
-        return []
+
+        results = []
+        for att in image_attachments:
+            try:
+                file_bytes = att.get("data")
+                if not file_bytes:
+                    logger.warning(f"No image data for attachment: {att.get('filename')}")
+                    continue
+
+                # If data came as base64 string (from ingestor), decode it
+                if isinstance(file_bytes, str):
+                    import base64
+                    file_bytes = base64.b64decode(file_bytes)
+
+                filename = att.get("filename", "image.jpg")
+
+                # Step 1: Normalize image
+                processed = await normalize_image(file_bytes, filename)
+
+                # Step 2: Classify
+                classification, cls_meta = await classify_image(
+                    image_base64=processed.base64_data,
+                    media_type="image/jpeg",
+                )
+
+                # Step 3: Extract changes (skips "other" and "document" types)
+                proposals, vis_meta = await extract_changes_from_image(
+                    image_base64=processed.base64_data,
+                    image_type=classification.image_type,
+                    media_type="image/jpeg",
+                    project_name=project["name"] if project else "",
+                    project_type=project.get("project_type", "") if project else "",
+                    scope_summary=project.get("scope_summary", "") if project else "",
+                    key_materials=str(project.get("key_materials", "")) if project else "",
+                )
+
+                # Merge metadata from both stages
+                merged_meta = {
+                    **vis_meta,
+                    "image_classification": classification.image_type,
+                    "image_classification_confidence": classification.confidence,
+                    "classification_tokens": cls_meta.get("tokens_used", 0),
+                    "total_tokens": cls_meta.get("tokens_used", 0) + vis_meta.get("tokens_used", 0),
+                    "source_filename": filename,
+                }
+
+                results.extend([(p, merged_meta) for p in proposals])
+
+            except Exception as e:
+                logger.error(f"Image analysis failed for {att.get('filename')}: {e}")
+                continue
+
+        logger.info(f"Image pipeline: {len(results)} proposals from {len(image_attachments)} images")
+        return results
 
     async def analyze_documents():
-        """Phase 3: Document analysis (Sprint 3 — placeholder)."""
+        """Phase 3: Document analysis — extract text and run through detector."""
         if not doc_attachments:
             return []
-        # TODO: Sprint 3 — For each document:
-        # 1. Download via ingestor.download_attachment()
-        # 2. Parse with pdf_extractor / doc_parser
-        # 3. Run extracted text through text_detector
-        # 4. If PDF has images, run through image pipeline
-        # 5. Return proposals with metadata
-        logger.info(
-            f"Skipping {len(doc_attachments)} document attachments "
-            "(document pipeline not yet implemented)"
-        )
-        return []
+
+        results = []
+        for att in doc_attachments:
+            try:
+                file_bytes = att.get("data")
+                if not file_bytes:
+                    logger.warning(f"No data for document: {att.get('filename')}")
+                    continue
+
+                # If data came as base64 string, decode it
+                if isinstance(file_bytes, str):
+                    import base64
+                    file_bytes = base64.b64decode(file_bytes)
+
+                filename = att.get("filename", "document")
+                mime = att.get("mime_type", "")
+
+                # Step 1: Parse document based on type
+                doc_text = ""
+                pdf_images = []
+
+                if mime == "application/pdf":
+                    pdf_content = await extract_from_pdf(file_bytes)
+                    doc_text = pdf_content.total_text
+                    # Collect images from PDF pages for the image pipeline
+                    for page in pdf_content.pages:
+                        for img_b64 in page.images_base64:
+                            pdf_images.append(img_b64)
+
+                elif mime in (
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/msword",
+                ):
+                    doc_text = await parse_docx(file_bytes)
+
+                elif mime in (
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.ms-excel",
+                ):
+                    doc_text = await parse_xlsx(file_bytes)
+
+                else:
+                    logger.warning(f"Unsupported document type: {mime}")
+                    continue
+
+                # Step 2: Run extracted text through text detector
+                if doc_text.strip():
+                    proposals, meta = await detect_changes_in_text(
+                        text=doc_text,
+                        subject=f"Document: {filename}",
+                        project_name=project["name"] if project else "",
+                        project_type=project.get("project_type", "") if project else "",
+                        scope_summary=project.get("scope_summary", "") if project else "",
+                        key_materials=str(project.get("key_materials", "")) if project else "",
+                    )
+                    meta["source_filename"] = filename
+                    meta["source_type"] = "document"
+                    results.extend([(p, meta) for p in proposals])
+
+                # Step 3: If PDF had embedded images, run them through image pipeline
+                for img_b64 in pdf_images:
+                    try:
+                        classification, cls_meta = await classify_image(
+                            image_base64=img_b64,
+                            media_type="image/jpeg",
+                        )
+                        img_proposals, vis_meta = await extract_changes_from_image(
+                            image_base64=img_b64,
+                            image_type=classification.image_type,
+                            media_type="image/jpeg",
+                            project_name=project["name"] if project else "",
+                            project_type=project.get("project_type", "") if project else "",
+                            scope_summary=project.get("scope_summary", "") if project else "",
+                            key_materials=str(project.get("key_materials", "")) if project else "",
+                        )
+                        vis_meta["source_filename"] = filename
+                        vis_meta["source_type"] = "pdf_embedded_image"
+                        results.extend([(p, vis_meta) for p in img_proposals])
+                    except Exception as e:
+                        logger.error(f"PDF image analysis failed for {filename}: {e}")
+
+            except Exception as e:
+                logger.error(f"Document analysis failed for {att.get('filename')}: {e}")
+                continue
+
+        logger.info(f"Document pipeline: {len(results)} proposals from {len(doc_attachments)} documents")
+        return results
 
     # Run all phases concurrently
     results = await asyncio.gather(

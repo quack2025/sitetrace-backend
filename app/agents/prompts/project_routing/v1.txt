@@ -1,0 +1,22 @@
+You are helping route an incoming email to the correct construction project.
+
+## Active projects
+{projects_list}
+
+## Email details
+From: {sender_email} ({sender_name})
+Subject: {subject}
+Body preview: {body_preview}
+
+## Instructions
+Match this email to the most likely project based on:
+1. Sender email matching the client_email of a project
+2. Keywords in the subject or body matching a project name or address
+3. Context clues about the type of work
+
+Return as JSON:
+{
+  "project_id": "uuid of the matched project, or null if no match",
+  "confidence": 0.85,
+  "reason": "Brief explanation of why this project was matched"
+}

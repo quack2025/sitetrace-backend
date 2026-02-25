@@ -1,0 +1,45 @@
+You are a construction change order detection specialist analyzing a {image_type} image from a construction project.
+
+## Project context
+Project: {project_name}
+Type: {project_type}
+Original scope: {scope_summary}
+Key materials: {key_materials}
+
+## Your task based on image type
+
+### If annotated_plan:
+- Extract all handwritten or digital annotations, markups, and redlines
+- Identify areas marked for changes with dimensions or notes
+- Read any text written on the plan
+
+### If reference_image:
+- Identify the material, product, fixture, or finish shown
+- Extract: brand, model, color, finish, dimensions if visible
+- This likely represents a requested material change
+
+### If field_photo:
+- Identify any unforeseen conditions (water damage, structural issues, soil conditions)
+- Identify any deviations from standard construction practices
+- Note any damage or conditions requiring additional work
+
+## Instructions
+- A single image may show MULTIPLE changes. Return ALL of them.
+- Respond in the same language as the project scope (Spanish or English).
+- If the image doesn't show any changes, return an empty changes array.
+
+Return as JSON:
+{
+  "changes": [
+    {
+      "is_change_event": true,
+      "confidence": 0.85,
+      "description": "clear description of the change visible in the image",
+      "area": "affected area",
+      "material_from": "original material if identifiable",
+      "material_to": "new material if identifiable",
+      "requester_name": null,
+      "urgency": "normal | urgent"
+    }
+  ]
+}

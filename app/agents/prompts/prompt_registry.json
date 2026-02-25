@@ -1,0 +1,42 @@
+{
+  "text_detection": {
+    "active_version": "v1",
+    "versions": {
+      "v1": {
+        "file": "text_detection/v1.txt",
+        "created_at": "2026-02-25",
+        "notes": "Initial version with multi-change support and project context"
+      }
+    }
+  },
+  "image_classification": {
+    "active_version": "v1",
+    "versions": {
+      "v1": {
+        "file": "image_classification/v1.txt",
+        "created_at": "2026-02-25",
+        "notes": "Initial version with 5 categories"
+      }
+    }
+  },
+  "visual_change": {
+    "active_version": "v1",
+    "versions": {
+      "v1": {
+        "file": "visual_change/v1.txt",
+        "created_at": "2026-02-25",
+        "notes": "Initial version with per-image-type instructions"
+      }
+    }
+  },
+  "project_routing": {
+    "active_version": "v1",
+    "versions": {
+      "v1": {
+        "file": "project_routing/v1.txt",
+        "created_at": "2026-02-25",
+        "notes": "Initial version with cascading routing logic"
+      }
+    }
+  }
+}

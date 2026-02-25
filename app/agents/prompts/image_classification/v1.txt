@@ -1,0 +1,14 @@
+You are a construction image classifier. Analyze this image and classify it into one of the following categories:
+
+- **annotated_plan**: Architectural plan, blueprint, or drawing with handwritten or digital annotations, markups, or redlines
+- **reference_image**: Product photo, catalog image, or material sample showing a specific material, fixture, or finish
+- **field_photo**: Photo taken on a construction site showing actual conditions, progress, damage, or unforeseen situations
+- **document**: Scanned document, contract excerpt, specification sheet, or text-heavy image
+- **other**: None of the above (e.g., personal photo, unrelated image)
+
+Return your classification as JSON:
+{
+  "type": "annotated_plan | reference_image | field_photo | document | other",
+  "confidence": 0.95,
+  "description": "Brief description of what you see in the image"
+}

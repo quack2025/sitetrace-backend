@@ -4,7 +4,16 @@ from loguru import logger
 import sys
 
 from app.config import get_settings
-from app.routers import projects, change_events, change_orders, integrations, notifications, webhooks
+from app.routers import (
+    projects,
+    change_events,
+    change_orders,
+    integrations,
+    notifications,
+    webhooks,
+    events_stream,
+    gmail_oauth,
+)
 
 # Configure loguru
 logger.remove()
@@ -33,6 +42,8 @@ app.include_router(change_orders.router)
 app.include_router(integrations.router)
 app.include_router(notifications.router)
 app.include_router(webhooks.router)
+app.include_router(events_stream.router)
+app.include_router(gmail_oauth.router)
 
 
 @app.get("/health")
@@ -72,6 +83,11 @@ async def detailed_health_check():
     # Check Anthropic API key is set
     health["dependencies"]["anthropic"] = (
         "ok" if settings.anthropic_api_key else "not configured"
+    )
+
+    # Check Resend API key is set
+    health["dependencies"]["resend"] = (
+        "ok" if settings.resend_api_key else "not configured"
     )
 
     return health

@@ -190,6 +190,59 @@ async def delete_item(
     _recalculate_totals(change_order_id)
 
 
+@router.post("/{change_order_id}/send", response_model=ChangeOrderResponse)
+async def send_to_client(
+    change_order_id: UUID,
+    contractor: dict = Depends(get_current_contractor),
+):
+    """Send Change Order to client for signature."""
+    co = _verify_co_access(change_order_id, contractor["id"])
+
+    if co["status"] != "draft":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Can only send draft change orders, current status: {co['status']}",
+        )
+
+    # Verify CO has at least one item with cost
+    db = get_supabase()
+    items = (
+        db.table("change_order_items")
+        .select("id")
+        .eq("change_order_id", str(change_order_id))
+        .execute()
+    )
+    if not items.data:
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least one cost line item before sending to client",
+        )
+
+    # Send notification to client (async)
+    from app.notifications.service import send_client_sign_request
+    import asyncio
+    await send_client_sign_request(change_order_id)
+
+    # Refresh and return
+    result = (
+        db.table("change_orders")
+        .select("*")
+        .eq("id", str(change_order_id))
+        .single()
+        .execute()
+    )
+    co_data = result.data
+    co_items = (
+        db.table("change_order_items")
+        .select("*")
+        .eq("change_order_id", str(change_order_id))
+        .order("sort_order")
+        .execute()
+    )
+    co_data["items"] = co_items.data
+    return co_data
+
+
 @router.post("/{change_order_id}/sign", response_model=ChangeOrderResponse)
 async def sign_change_order(
     change_order_id: UUID,

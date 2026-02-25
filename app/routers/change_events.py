@@ -289,7 +289,69 @@ async def confirm_change_event(
         ip_address=request.client.host if request.client else None,
     )
 
-    return result.data[0]
+    # Auto-create Change Order for this confirmed event
+    confirmed = result.data[0]
+    _auto_create_change_order(confirmed)
+
+    return confirmed
+
+
+def _auto_create_change_order(change_event: dict):
+    """Automatically create a draft Change Order when a change event is confirmed."""
+    db = get_supabase()
+    project_id = change_event["project_id"]
+
+    # Generate order number: CO-YYYY-NNN
+    year = datetime.utcnow().year
+    count_result = (
+        db.table("change_orders")
+        .select("id", count="exact")
+        .eq("project_id", project_id)
+        .execute()
+    )
+    next_num = (count_result.count or 0) + 1
+    order_number = f"CO-{year}-{next_num:03d}"
+
+    co_result = (
+        db.table("change_orders")
+        .insert(
+            {
+                "project_id": project_id,
+                "order_number": order_number,
+                "description": change_event["description"],
+                "status": "draft",
+            }
+        )
+        .execute()
+    )
+    co = co_result.data[0]
+
+    # Create an initial line item from the change event
+    db.table("change_order_items").insert(
+        {
+            "change_order_id": co["id"],
+            "change_event_id": change_event["id"],
+            "description": change_event["description"],
+            "category": "other",
+            "quantity": 1,
+            "unit": "unit",
+            "unit_cost": 0,
+            "total_cost": 0,
+            "sort_order": 0,
+        }
+    ).execute()
+
+    # State transition for the CO
+    db.table("state_transitions").insert(
+        {
+            "entity_type": "change_order",
+            "entity_id": co["id"],
+            "from_status": None,
+            "to_status": "draft",
+            "actor_type": "system",
+            "metadata": {"change_event_id": change_event["id"], "auto_created": True},
+        }
+    ).execute()
 
 
 @router.post(

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     supabase_anon_key: str
 
     # AI
-    anthropic_api_key: str
+    anthropic_api_key: str = ""
     openai_api_key: str = ""
 
     # Email

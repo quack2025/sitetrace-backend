@@ -13,6 +13,8 @@ from app.routers import (
     webhooks,
     events_stream,
     gmail_oauth,
+    outlook_oauth,
+    timeline,
 )
 
 # Configure loguru
@@ -44,6 +46,8 @@ app.include_router(notifications.router)
 app.include_router(webhooks.router)
 app.include_router(events_stream.router)
 app.include_router(gmail_oauth.router)
+app.include_router(outlook_oauth.router)
+app.include_router(timeline.router)
 
 
 @app.get("/health")

@@ -3,6 +3,7 @@ from loguru import logger
 from app.workers.celery_app import celery_app
 from app.database import get_supabase
 from app.ingestors.gmail import GmailIngestor
+from app.ingestors.outlook import OutlookIngestor
 from app.agents.project_router import route_email_to_project
 
 
@@ -47,12 +48,14 @@ def _poll_single_integration(integration: dict):
     db = get_supabase()
     contractor_id = integration["contractor_id"]
 
-    # Select ingestor
-    if integration["type"] == "gmail":
+    # Select ingestor based on channel type
+    channel = integration.get("type") or integration.get("channel", "")
+    if channel == "gmail":
         ingestor = GmailIngestor()
+    elif channel == "outlook":
+        ingestor = OutlookIngestor()
     else:
-        # TODO: Sprint 5 — Outlook ingestor
-        logger.warning(f"Outlook ingestor not yet implemented, skipping {integration['id']}")
+        logger.warning(f"Unknown channel '{channel}', skipping integration {integration['id']}")
         return
 
     # Fetch new messages

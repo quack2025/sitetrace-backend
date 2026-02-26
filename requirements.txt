@@ -20,6 +20,7 @@ PyJWT==2.9.0
 
 # AI
 anthropic==0.40.0
+openai==1.40.0
 
 # Logging
 loguru==0.7.2

@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     outlook_redirect_uri: str = ""
     cf_api_base_url: str = "https://api.contractorforeman.com/v1"
 
+    # Stripe billing
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_prices: dict = {"starter": "", "pro": ""}
+
     # App
     app_base_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"

@@ -15,7 +15,9 @@ from app.routers import (
     gmail_oauth,
     outlook_oauth,
     timeline,
+    billing,
 )
+from app.middleware.rate_limiter import RateLimitMiddleware
 
 # Configure loguru
 logger.remove()
@@ -27,8 +29,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS
+# Middleware
 settings = get_settings()
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.app_base_url],
@@ -48,6 +51,7 @@ app.include_router(events_stream.router)
 app.include_router(gmail_oauth.router)
 app.include_router(outlook_oauth.router)
 app.include_router(timeline.router)
+app.include_router(billing.router)
 
 
 @app.get("/health")
@@ -93,5 +97,26 @@ async def detailed_health_check():
     health["dependencies"]["resend"] = (
         "ok" if settings.resend_api_key else "not configured"
     )
+
+    # Check Stripe
+    health["dependencies"]["stripe"] = (
+        "ok" if settings.stripe_secret_key else "not configured"
+    )
+
+    # Queue metrics (Celery)
+    try:
+        from app.workers.celery_app import celery_app
+        inspect = celery_app.control.inspect(timeout=2.0)
+        active = inspect.active() or {}
+        reserved = inspect.reserved() or {}
+        active_count = sum(len(v) for v in active.values())
+        pending_count = sum(len(v) for v in reserved.values())
+        health["queue"] = {
+            "active_tasks": active_count,
+            "pending_tasks": pending_count,
+            "workers": list(active.keys()),
+        }
+    except Exception as e:
+        health["queue"] = {"error": str(e)[:100]}
 
     return health

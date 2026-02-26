@@ -7,3 +7,19 @@ healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 numReplicas = 1
+
+# Additional Railway services (deploy separately):
+#
+# Celery Worker:
+#   startCommand = "celery -A app.workers.celery_app worker --loglevel=info --concurrency=2"
+#   healthcheckPath = ""
+#   restartPolicyType = "ON_FAILURE"
+#
+# Celery Beat:
+#   startCommand = "celery -A app.workers.celery_app beat --loglevel=info"
+#   healthcheckPath = ""
+#   restartPolicyType = "ON_FAILURE"
+#
+# Flower (monitoring):
+#   startCommand = "celery -A app.workers.celery_app flower --port=5555"
+#   healthcheckPath = ""

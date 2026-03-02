@@ -203,6 +203,64 @@ async def get_project_timeline(
             metadata={"notification_type": n["type"]},
         ))
 
+    # 6. Document bulletins
+    bulletin_result = (
+        db.table("document_bulletins")
+        .select("id, bulletin_number, title, change_order_id, affected_areas, created_at")
+        .eq("project_id", str(project_id))
+        .execute()
+    )
+    for b in bulletin_result.data:
+        areas = b.get("affected_areas") or []
+        area_count = len(areas)
+        items.append(TimelineItem(
+            timestamp=b["created_at"],
+            type="bulletin",
+            entity_id=b["id"],
+            title=f"Bulletin {b['bulletin_number']}: {b['title'][:60]}",
+            description=f"{area_count} document area(s) affected",
+            metadata={
+                "bulletin_number": b["bulletin_number"],
+                "change_order_id": b.get("change_order_id"),
+                "affected_areas_count": area_count,
+            },
+        ))
+
+    # 7. Document version events (superseded documents)
+    doc_result = (
+        db.table("project_documents")
+        .select("id, name, category, version, status, superseded_at, created_at")
+        .eq("project_id", str(project_id))
+        .execute()
+    )
+    for doc in doc_result.data:
+        if doc.get("superseded_at"):
+            items.append(TimelineItem(
+                timestamp=doc["superseded_at"],
+                type="document",
+                entity_id=doc["id"],
+                title=f"Document superseded: {doc['name']} v{doc['version']}",
+                description=f"Category: {doc['category'].replace('_', ' ').title()}",
+                metadata={
+                    "category": doc["category"],
+                    "version": doc["version"],
+                    "status": "superseded",
+                },
+            ))
+        if doc["version"] > 1:
+            items.append(TimelineItem(
+                timestamp=doc["created_at"],
+                type="document",
+                entity_id=doc["id"],
+                title=f"New version: {doc['name']} v{doc['version']}",
+                description=f"Category: {doc['category'].replace('_', ' ').title()}",
+                metadata={
+                    "category": doc["category"],
+                    "version": doc["version"],
+                    "status": doc["status"],
+                },
+            ))
+
     # Sort by timestamp descending (most recent first)
     items.sort(key=lambda x: x.timestamp, reverse=True)
     total_count = len(items)

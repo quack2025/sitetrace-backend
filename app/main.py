@@ -16,6 +16,9 @@ from app.routers import (
     outlook_oauth,
     timeline,
     billing,
+    team_members,
+    documents,
+    bulletins,
 )
 from app.middleware.rate_limiter import RateLimitMiddleware
 
@@ -52,6 +55,9 @@ app.include_router(gmail_oauth.router)
 app.include_router(outlook_oauth.router)
 app.include_router(timeline.router)
 app.include_router(billing.router)
+app.include_router(team_members.router)
+app.include_router(documents.router)
+app.include_router(bulletins.router)
 
 
 @app.get("/health")

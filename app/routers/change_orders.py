@@ -374,6 +374,30 @@ async def sign_change_order(
     except Exception as e:
         logger.error(f"Failed to send close notification: {e}")
 
+    # Auto-supersede linked documents
+    try:
+        linked_docs = (
+            db.table("change_order_documents")
+            .select("document_id")
+            .eq("change_order_id", str(change_order_id))
+            .execute()
+        ).data
+        for link in linked_docs:
+            db.table("project_documents").update({
+                "status": "superseded",
+                "superseded_at": now,
+            }).eq("id", link["document_id"]).eq("status", "current").execute()
+            logger.info(f"Auto-superseded document {link['document_id']} from CO sign")
+    except Exception as e:
+        logger.error(f"Failed to auto-supersede documents: {e}")
+
+    # Trigger document bulletin generation (async via Celery)
+    try:
+        from app.workers.bulletin_processor import generate_and_distribute_bulletin
+        generate_and_distribute_bulletin.delay(str(change_order_id))
+    except Exception as e:
+        logger.error(f"Failed to queue bulletin generation: {e}")
+
     signed = result.data[0]
     signed.pop("projects", None)
     signed["items"] = []

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     # App
     app_base_url: str = "http://localhost:5173"
+    allowed_origins: str = ""  # Comma-separated extra CORS origins
     backend_url: str = "http://localhost:8000"
     poll_interval_seconds: int = 300
     confidence_threshold: float = 0.70

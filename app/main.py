@@ -19,12 +19,21 @@ from app.routers import (
     team_members,
     documents,
     bulletins,
+    contractors,
 )
 from app.middleware.rate_limiter import RateLimitMiddleware
 
 # Configure loguru
 logger.remove()
 logger.add(sys.stderr, format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}", level="INFO")
+
+
+def _build_origins(settings) -> list[str]:
+    origins = [settings.app_base_url]
+    if settings.allowed_origins:
+        origins.extend(o.strip() for o in settings.allowed_origins.split(",") if o.strip())
+    return origins
+
 
 app = FastAPI(
     title="SiteTrace API",
@@ -37,7 +46,7 @@ settings = get_settings()
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.app_base_url],
+    allow_origins=_build_origins(settings),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,6 +67,7 @@ app.include_router(billing.router)
 app.include_router(team_members.router)
 app.include_router(documents.router)
 app.include_router(bulletins.router)
+app.include_router(contractors.router)
 
 
 @app.get("/health")
